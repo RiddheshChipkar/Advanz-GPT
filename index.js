@@ -37,8 +37,8 @@ $(document).ready(function () {
          
                     <!-- Quick suggestions -->
                     <div class="suggestions">
-                        <div class="suggestion-chip">How do I center a div?</div>
-                        <div class="suggestion-chip">Explain closures in JavaScript</div>
+                        <div class="suggestion-chip">Create an engaging social media post for a small business</div>
+                        <div class="suggestion-chip">Explain the benefits of mindfulness</div>
                         <div class="suggestion-chip">Best practices for React</div>
                         <div class="suggestion-chip">Python vs JavaScript</div>
                     </div>
@@ -71,6 +71,14 @@ $(document).ready(function () {
         conversationHistory = [systemMessage];
         // Replace chat container with initial AI greeting
         chatMessages.html(initialAiHtml);
+
+        $('.suggestion-chip').on('click', function () {
+        const suggestion = $(this).text();
+        textarea.val(suggestion);
+        textarea.trigger('input');
+        textarea.focus();
+    });
+
     });
 
     // Click handler for suggestion chips
