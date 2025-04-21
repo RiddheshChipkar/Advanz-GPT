@@ -72,11 +72,11 @@ $(document).ready(function () {
         chatMessages.html(initialAiHtml);
 
         $('.suggestion-chip').on('click', function () {
-        const suggestion = $(this).text();
-        textarea.val(suggestion);
-        textarea.trigger('input');
-        textarea.focus();
-    });
+            const suggestion = $(this).text();
+            textarea.val(suggestion);
+            textarea.trigger('input');
+            textarea.focus();
+        });
 
     });
 
@@ -207,7 +207,7 @@ $(document).ready(function () {
     // Function to remove typing indicator
     function removeTypingIndicator() {
         $('#typingIndicator').remove();
-    }   
+    }
 
     // Function to scroll to bottom of chat
     function scrollToBottom() {
@@ -215,77 +215,66 @@ $(document).ready(function () {
     }
 
     // Function to format AI response (markdown to HTML)
-   // Function to format AI response (markdown to HTML)
-function formatResponse(text) {
-    // Convert markdown to HTML
-    text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-    text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-    text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+    // Function to format AI response (markdown to HTML)
+    // Function to format AI response (markdown to HTML)
+    function formatResponse(text) {
+        // First, handle code blocks to prevent processing markdown inside them
+        const codeBlocks = [];
+        text = text.replace(/```[\s\S]*?```/g, function (match) {
+            codeBlocks.push(match);
+            return `CODEBLOCK_${codeBlocks.length - 1}_`;
+        });
 
-    // Handle code blocks
-    text = text.replace(/```(\w*)\n([\s\S]*?)\n```/g, function (match, lang, code) {
-        return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
-    });
+        // Convert markdown to HTML
+        text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+        text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+        text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        text = text.replace(/`(.*?)`/g, '<code>$1</code>');
 
-    // Handle unordered lists
-    text = text.replace(/^\s*-\s(.*$)/gm, '<li>$1</li>');
-    text = text.replace(/^\s*\*\s(.*$)/gm, '<li>$1</li>');
-    text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-        return `<ul>${match}</ul>`;
-    });
+        // Handle unordered lists
+        text = text.replace(/^\s*[-*]\s(.*$)/gm, '<li>$1</li>');
+        text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
+            return `<ul>${match}</ul>`;
+        });
 
-    // Handle ordered lists - this is the modified part
-    // First split the text into lines
-    let lines = text.split('\n');
-    let inOrderedList = false;
-    let olItems = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-        // Check for ordered list items (1., 2., etc.)
-        const olMatch = lines[i].match(/^(\s*\d+\.\s)(.*)$/);
-        if (olMatch) {
-            if (!inOrderedList) {
-                inOrderedList = true;
+        // Handle ordered lists - NEW IMPROVED VERSION
+        text = text.replace(/^(\s*\d+\.\s)(.*)$/gm, function (match, prefix, content) {
+            // Preserve the original number from the markdown
+            const number = prefix.trim().replace('.', '');
+            return `<li value="${number}">${content}</li>`;
+        });
+
+        // Wrap consecutive list items in ol/ul tags
+        text = text.replace(/(<li[^>]*>.*<\/li>\s*)+/g, function (match) {
+            if (match.includes('value="')) {
+                return `<ol>${match}</ol>`;
+            } else {
+                return `<ul>${match}</ul>`;
             }
-            olItems.push(`<li>${olMatch[2]}</li>`);
-            lines[i] = ''; // Remove the original line
-        } else {
-            if (inOrderedList && olItems.length > 0) {
-                // Add the collected ordered list items
-                const prevLine = i - olItems.length - 1 >= 0 ? lines[i - olItems.length - 1] : '';
-                if (!prevLine.match(/<\/ol>$/)) {
-                    lines[i - olItems.length] = `<ol>${olItems.join('')}</ol>`;
-                }
-                inOrderedList = false;
-                olItems = [];
+        });
+
+        // Handle paragraphs
+        text = text.split('\n\n').map(paragraph => {
+            if (!paragraph.match(/^<(ul|ol|li|h\d|pre|code)/)) {
+                return `<p>${paragraph}</p>`;
             }
-        }
-    }
-    
-    // Handle any remaining ordered list items at the end
-    if (inOrderedList && olItems.length > 0) {
-        const insertPos = lines.length - olItems.length;
-        lines[insertPos] = `<ol>${olItems.join('')}</ol>`;
-        for (let j = insertPos + 1; j < lines.length; j++) {
-            lines[j] = '';
-        }
-    }
-    
-    text = lines.join('\n');
+            return paragraph;
+        }).join('');
 
-    // Convert newlines to paragraphs (handle consecutive newlines)
-    text = text.split('\n\n').map(paragraph => {
-        if (!paragraph.match(/^<(ul|ol|li|h\d|pre|code)/)) {
-            return `<p>${paragraph}</p>`;
-        }
-        return paragraph;
-    }).join('');
+        // Restore code blocks
+        text = text.replace(/CODEBLOCK_(\d+)_/g, function (match, index) {
+            const codeBlock = codeBlocks[parseInt(index)];
+            // Format code blocks properly
+            const langMatch = codeBlock.match(/```(\w*)/);
+            const lang = langMatch ? langMatch[1] : '';
+            const code = codeBlock.replace(/```[\w]*\n/, '').replace(/\n```$/, '');
+            return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
+        });
 
-    return text;
-}
+        return text;
+    }
 
     // Helper function to escape HTML
     function escapeHtml(unsafe) {
