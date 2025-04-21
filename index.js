@@ -37,10 +37,9 @@ $(document).ready(function () {
          
                     <!-- Quick suggestions -->
                     <div class="suggestions">
-                        <div class="suggestion-chip">Create an engaging social media post for a small business</div>
-                        <div class="suggestion-chip">Explain the benefits of mindfulness</div>
-                        <div class="suggestion-chip">Best practices for React</div>
-                        <div class="suggestion-chip">Python vs JavaScript</div>
+                         <div class="suggestion-chip">Summarize the latest trends in Pharma</div>
+                        <div class="suggestion-chip">Explain the benefits of Mindfulness</div>
+                        <div class="suggestion-chip">Recent Pharma News</div>
                     </div>
      `;
     let conversationHistory = [systemMessage];
@@ -208,7 +207,7 @@ $(document).ready(function () {
     // Function to remove typing indicator
     function removeTypingIndicator() {
         $('#typingIndicator').remove();
-    }
+    }   
 
     // Function to scroll to bottom of chat
     function scrollToBottom() {
@@ -216,43 +215,77 @@ $(document).ready(function () {
     }
 
     // Function to format AI response (markdown to HTML)
-    function formatResponse(text) {
-        // Convert markdown to HTML
-        text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-        text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-        text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+   // Function to format AI response (markdown to HTML)
+function formatResponse(text) {
+    // Convert markdown to HTML
+    text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+    text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+    text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    text = text.replace(/`(.*?)`/g, '<code>$1</code>');
 
-        // Handle code blocks
-        text = text.replace(/```(\w*)\n([\s\S]*?)\n```/g, function (match, lang, code) {
-            return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
-        });
+    // Handle code blocks
+    text = text.replace(/```(\w*)\n([\s\S]*?)\n```/g, function (match, lang, code) {
+        return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
+    });
 
-        // Handle unordered lists
-        text = text.replace(/^\s*-\s(.*$)/gm, '<li>$1</li>');
-        text = text.replace(/^\s*\*\s(.*$)/gm, '<li>$1</li>');
-        text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-            return `<ul>${match}</ul>`;
-        });
+    // Handle unordered lists
+    text = text.replace(/^\s*-\s(.*$)/gm, '<li>$1</li>');
+    text = text.replace(/^\s*\*\s(.*$)/gm, '<li>$1</li>');
+    text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
+        return `<ul>${match}</ul>`;
+    });
 
-        // Handle ordered lists
-        text = text.replace(/^\s*\d+\.\s(.*$)/gm, '<li>$1</li>');
-        text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-            return `<ol>${match}</ol>`;
-        });
-
-        // Convert newlines to paragraphs (handle consecutive newlines)
-        text = text.split('\n\n').map(paragraph => {
-            if (!paragraph.match(/^<(ul|ol|li|h\d|pre|code)/)) {
-                return `<p>${paragraph}</p>`;
+    // Handle ordered lists - this is the modified part
+    // First split the text into lines
+    let lines = text.split('\n');
+    let inOrderedList = false;
+    let olItems = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        // Check for ordered list items (1., 2., etc.)
+        const olMatch = lines[i].match(/^(\s*\d+\.\s)(.*)$/);
+        if (olMatch) {
+            if (!inOrderedList) {
+                inOrderedList = true;
             }
-            return paragraph;
-        }).join('');
-
-        return text;
+            olItems.push(`<li>${olMatch[2]}</li>`);
+            lines[i] = ''; // Remove the original line
+        } else {
+            if (inOrderedList && olItems.length > 0) {
+                // Add the collected ordered list items
+                const prevLine = i - olItems.length - 1 >= 0 ? lines[i - olItems.length - 1] : '';
+                if (!prevLine.match(/<\/ol>$/)) {
+                    lines[i - olItems.length] = `<ol>${olItems.join('')}</ol>`;
+                }
+                inOrderedList = false;
+                olItems = [];
+            }
+        }
     }
+    
+    // Handle any remaining ordered list items at the end
+    if (inOrderedList && olItems.length > 0) {
+        const insertPos = lines.length - olItems.length;
+        lines[insertPos] = `<ol>${olItems.join('')}</ol>`;
+        for (let j = insertPos + 1; j < lines.length; j++) {
+            lines[j] = '';
+        }
+    }
+    
+    text = lines.join('\n');
+
+    // Convert newlines to paragraphs (handle consecutive newlines)
+    text = text.split('\n\n').map(paragraph => {
+        if (!paragraph.match(/^<(ul|ol|li|h\d|pre|code)/)) {
+            return `<p>${paragraph}</p>`;
+        }
+        return paragraph;
+    }).join('');
+
+    return text;
+}
 
     // Helper function to escape HTML
     function escapeHtml(unsafe) {
